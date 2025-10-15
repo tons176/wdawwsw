@@ -1,6 +1,6 @@
 local function authenticate()
     local success, response = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/tons176/wdawwsw/refs/heads/main/BEE%20POISON")
+        return game:HttpGet("https://raw.githubusercontent.com/tons176/wdawwsw/refs/heads/main/Ascetic%20Blaze")
     end)
     
     return success and response and response:find("valid_token") ~= nil
