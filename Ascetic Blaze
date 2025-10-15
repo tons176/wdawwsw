@@ -1,0 +1,117 @@
+local function authenticate()
+    local success, response = pcall(function()
+        return game:HttpGet("https://raw.githubusercontent.com/tons176/wdawwsw/refs/heads/main/BEE%20POISON")
+    end)
+    
+    return success and response and response:find("valid_token") ~= nil
+end
+
+if not authenticate() then
+    game.Players.LocalPlayer:Kick("invalid")
+    return
+end
+
+local ReplicatedStorage, Workspace, Players, RunService = game:GetService("ReplicatedStorage"), game:GetService("Workspace"), game:GetService("Players"), game:GetService("RunService")
+local player, character, humanoidRootPart = Players.LocalPlayer, Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait(), (Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()):WaitForChild("HumanoidRootPart")
+local events, remotes = ReplicatedStorage:WaitForChild("Events"), ReplicatedStorage:WaitForChild("Remotes")
+local multiQuestTake, takeRequirements, attackRemote, breathingRemote = events:WaitForChild("MultiQuestTake"), remotes:WaitForChild("TakeRequirements"), remotes:WaitForChild("Attack"), events:WaitForChild("Breathing")
+
+local AutoBlaze, isAttacking, LastDealth, Starting = true, false, 0, false
+
+spawn(function() while AutoBlaze do breathingRemote:FireServer("BeginHamonBreathing") wait(1) end end)
+
+multiQuestTake:FireServer("Ascetic Blaze Trainer")
+takeRequirements:InvokeServer("ImmortalFlower")
+
+local function TpedPlayer(target)
+    if not target then return false end
+    humanoidRootPart.CFrame = (target.PrimaryPart and target.PrimaryPart.CFrame or target:GetPivot()) * CFrame.new(0, 0, 5)
+    return true
+end
+
+local function LowerMoonHealth(target)
+    if not target then return 0, 0 end
+    local humanoid = target:FindFirstChild("Humanoid")
+    return humanoid and humanoid.Health or 0, humanoid and humanoid.MaxHealth or 0
+end
+
+local function KillersDamage(target)
+    if not target then return 0 end
+    local killersFolder = target:FindFirstChild("Killers")
+    if not killersFolder then return 0 end
+    for _, child in ipairs(killersFolder:GetChildren()) do
+        if child:IsA("NumberValue") then return child.Value end
+    end
+    return 0
+end
+
+local function InstantKill(target)
+    if not target then return false end
+    local humanoid = target:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    humanoid.Health = 0
+    humanoid:SetAttribute("Game/Health", 0)
+    if humanoid:FindFirstChild("Health") then humanoid:TakeDamage(humanoid.Health + 1000) end
+    wait(0.5)
+    return humanoid.Health <= 0
+end
+
+local function LowerDemon()
+    local demonsKiller = Workspace:FindFirstChild("CharactersAndNPCs")
+    if not demonsKiller then return nil end
+    for _, demon in ipairs(demonsKiller:GetChildren()) do
+        if demon.Name == "Lower Moon Demon 4" then
+            local health, maxHealth = LowerMoonHealth(demon)
+            if health > 0 then return demon end
+        end
+    end
+    return nil
+end
+
+local function KilledDemon()
+    local quest = player:FindFirstChild("Quest")
+    if not quest then return 0 end
+    local kills = quest:FindFirstChild("Kills")
+    return kills and kills:IsA("IntValue") and kills.Value or 0
+end
+
+spawn(function()
+    while AutoBlaze do
+        local currentKills = KilledDemon()
+        
+        if Starting and currentKills == 0 then
+            AutoBlaze = false
+            break
+        end
+        
+        if currentKills > 0 then
+            Starting = true
+        end
+        
+        local target = LowerDemon()
+        if not target then wait(0.1) continue end
+        
+        isAttacking = true
+        local connection = RunService.Heartbeat:Connect(function()
+            TpedPlayer(target)
+            if isAttacking and tick() - LastDealth >= 1 then
+                attackRemote:FireServer("Skill", "Strike of the Hourglass", "Release", "FirstMove")
+                LastDealth = tick()
+            end
+        end)
+        
+        local health, maxHealth = LowerMoonHealth(target)
+        while health > 0 and AutoBlaze do
+            wait(0.1)
+            health, maxHealth = LowerMoonHealth(target)
+            if KillersDamage(target) >= 300 and health > 0 then
+                InstantKill(target)
+                break
+            end
+        end
+        
+        isAttacking = false
+        connection:Disconnect()
+        wait(0.1)
+    end
+end)
